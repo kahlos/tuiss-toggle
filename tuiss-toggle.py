@@ -23,8 +23,8 @@ CLOSE_COMMAND = bytes.fromhex("ff78ea41bf03e803")
 OPEN_COMMAND = bytes.fromhex("ff78ea41bf030000")
 
 # --- Logging Setup ---
-# Set to logging.DEBUG for more detailed BLE communication logs
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+# Set level to DEBUG for more detailed output, including BLE writes
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 log = logging.getLogger("TuissControl")
 
 
@@ -69,24 +69,30 @@ async def send_blind_command(command_to_send, command_name):
                 log.error("Failed to connect (unexpected state).")
                 return
 
-            log.info("Connected successfully.")
+            log.info("Connected successfully. MTU: %s", client.mtu_size) # Log MTU size
 
             # 1. Send Keep Alive
-            log.info("Sending keep-alive...")
+            log.debug(f"Writing Keep Alive command ({KEEP_ALIVE_COMMAND.hex()}) to {WRITE_UUID}...")
             await client.write_gatt_char(WRITE_UUID, KEEP_ALIVE_COMMAND, response=False)
+            log.info("Keep-alive sent.")
             await asyncio.sleep(0.5) # Short delay seems beneficial
 
             # 2. Send the Target Command
-            log.info(f"Sending {command_name} command...")
-            await client.write_gatt_char(WRITE_UUID, command_to_send, response=False)
-            log.info(f"{command_name} command sent.")
-            await asyncio.sleep(1.0) # Wait a moment for command to likely be processed by blind
+            log.debug(f"Writing {command_name} command ({command_to_send.hex()}) to {WRITE_UUID} with response=True...")
+            # *** Try writing WITH response ***
+            await client.write_gatt_char(WRITE_UUID, command_to_send, response=True)
+            log.info(f"{command_name} command sent and acknowledged (response=True).")
+            # *** Increase delay after sending command ***
+            log.info("Waiting 3 seconds for blind to process command...")
+            await asyncio.sleep(3.0)
 
             log.info("Operation complete.")
 
     except BleakError as e:
-        log.error(f"Bluetooth Error: {e}")
+        log.error(f"Bluetooth Error during operation: {e}")
         log.error("Ensure Bluetooth is on, the blind is powered and in range, and the MAC address is correct.")
+        if "response=True" in str(e):
+             log.error("The device might not support 'Write With Response'. Consider changing back to response=False.")
     except Exception as e:
         log.error(f"An unexpected error occurred: {e}")
     finally:
@@ -151,27 +157,13 @@ if __name__ == "__main__":
         asyncio.run(send_blind_command(target_command, command_name))
 
     log.info("Script execution finished.")
-
-
 """
+**Key Changes:**
 
-**Summary of Changes:**
+1.  **Logging Level:** Set to `DEBUG` to show more detailed logs, including the hex values of commands being written.
+2.  **Write With Response:** Changed `await client.write_gatt_char(WRITE_UUID, command_to_send, response=False)` to `response=True`. If this causes a new error, it means the device doesn't support Write With Response, and we might need to revert this specific change.
+3.  **Increased Delay:** Changed `asyncio.sleep(1.0)` after sending the command to `asyncio.sleep(3.0)`.
 
-1.  **Removed Position Logic:** The `toggle_blinds` function, `notification_handler`, `current_position_closed` variable, `position_received_event`, and the `GET_POSITION_COMMAND` are gone.
-2.  **New `send_blind_command` Function:** This simpler function handles connecting, sending the keep-alive, sending the specified command (`OPEN_COMMAND` or `CLOSE_COMMAND`), and disconnecting.
-3.  **Argument Parser Updated:**
-    * Added `--open` and `--close` flags using a mutually exclusive group.
-    * The script now defaults to the "OPEN" action if neither `--open` nor `--close` is provided.
-    * Added a description and epilog to the `--help` output.
-4.  **Main Execution Logic:** Determines whether to scan or send a command based on arguments, selects the correct command (defaulting to open), and calls the appropriate function.
+Please try running the script again (e.g., `python your_script_name.py --close`). Observe the output carefully (especially the DEBUG messages) and see if the blind moves this time. If it still doesn't work or you get a new error related to `response=True`, please share the output.
 
-**How to use:**
-
-* **Scan:** `python your_script_name.py --scan`
-* **Open Blinds (Default):** `python your_script_name.py` or `python your_script_name.py --open`
-* **Close Blinds:** `python your_script_name.py --close`
-* **Help:** `python your_script_name.py --help`
-
-This version should be more reliable as it avoids the potentially problematic position reading st
-
-"""
+Also, consider trying to operate the blind once using the official Tuiss SmartView app if you haven't recently, just in case it needs that activation/sync st"""
