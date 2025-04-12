@@ -8,7 +8,7 @@ import argparse # Added argparse for command-line arguments
 
 # --- Configuration ---
 # Replace with your blind's specific MAC address if different
-BLIND_ADDRESS = "E1:1D:ED:42:D1:90"
+BLIND_ADDRESS = "70B5DC24-7A0C-38C6-B482-B5B12BE74764"
 # UUIDs derived from Tuiss2HA project
 WRITE_UUID = "00010405-0405-0607-0809-0a0b0c0d1910"
 NOTIFY_UUID = "00010304-0405-0607-0809-0a0b0c0d1910"
