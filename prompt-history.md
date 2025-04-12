@@ -12,3 +12,12 @@ Help me write a toggle Python script that will open the blinds if their closed o
 
 # Prompt 5
 The script executes fine, but it can't seem to find the bluetooth device. Lets include something into the script to run as a separate argument to scan for bluetooth devices using bleak to verify the blind address.
+
+# Prompt 6
+This is the output from a scan, help me identify my blinds and update the script to use the correct mac address
+
+# Prompt 7
+The script is now successfully connecting to the blinds, but it's failing to get the position data. Is the position data actually needed to execute the open or close command?
+
+# Prompt 8
+Lets simplify it so that we use command-line arguments instead to open and close the blinds, and not rely on needing the position for the toggle. Make it default to opening the blinds if no argument is given and then you can give an open or close argument. Also add a standard --help argument to list options and explain what the script does, dependencies etc.
