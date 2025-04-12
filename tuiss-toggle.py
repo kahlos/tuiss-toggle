@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 
 import asyncio
-from bleak import BleakClient, BleakError
+from bleak import BleakClient, BleakError, BleakScanner # Added BleakScanner
 import sys
 import logging
+import argparse # Added argparse for command-line arguments
 
 # --- Configuration ---
 # Replace with your blind's specific MAC address if different
@@ -67,7 +68,33 @@ def notification_handler(sender: int, data: bytearray):
         log.debug("Received data too short, likely not position info.")
 
 
-# --- Main Function ---
+# --- Scan Function ---
+async def scan_for_devices(scan_duration=5.0):
+    """Scans for BLE devices for a specified duration."""
+    log.info(f"Scanning for BLE devices for {scan_duration} seconds...")
+    try:
+        devices = await BleakScanner.discover(timeout=scan_duration)
+        if not devices:
+            log.info("No BLE devices found nearby.")
+            return
+
+        log.info(f"Found {len(devices)} devices:")
+        for device in devices:
+            # Attempt to decode name, handle potential decoding errors
+            try:
+                device_name = device.name if device.name else "Unknown"
+            except UnicodeDecodeError:
+                device_name = "Unknown (decode error)"
+
+            log.info(f"  Address: {device.address}, Name: {device_name}")
+
+    except BleakError as e:
+        log.error(f"Bluetooth scanning error: {e}")
+    except Exception as e:
+        log.error(f"An unexpected error occurred during scanning: {e}")
+
+
+# --- Toggle Function ---
 async def toggle_blinds():
     """Connects to the blind, gets position, and sends open/close command."""
     global current_position_closed
@@ -109,8 +136,9 @@ async def toggle_blinds():
                 log.error("Timed out waiting for position data.")
                 # Attempt to stop notifications even on timeout
                 try:
-                    await client.stop_notify(NOTIFY_UUID)
-                    log.debug("Stopped notifications after timeout.")
+                    if client.is_connected: # Check connection before stopping notify
+                       await client.stop_notify(NOTIFY_UUID)
+                       log.debug("Stopped notifications after timeout.")
                 except BleakError as e:
                     log.warning(f"Error stopping notifications after timeout: {e}")
                 return # Exit if we can't get position
@@ -156,11 +184,57 @@ async def toggle_blinds():
     finally:
         # The 'async with' statement handles disconnection automatically.
         # No explicit disconnect needed here unless outside the 'async with'.
-        log.debug("Script finished.")
+        log.debug("Toggle function finished.")
+
 
 # --- Run the script ---
 if __name__ == "__main__":
+    # Setup argument parser
+    parser = argparse.ArgumentParser(description="Toggle Tuiss BLE Blinds or Scan for devices.")
+    parser.add_argument(
+        "--scan",
+        action="store_true",
+        help="Scan for nearby BLE devices instead of toggling the blind."
+    )
+    parser.add_argument(
+        "--scantime",
+        type=float,
+        default=5.0,
+        help="Duration in seconds for the BLE scan (default: 5.0)."
+    )
+    args = parser.parse_args()
+
+    # Check platform
     if sys.platform != "darwin":
          log.warning("This script is primarily tested on macOS. Running on other OS may require adjustments.")
-    # Run the main asynchronous function
-    asyncio.run(toggle_blinds())
+
+    # Decide whether to scan or toggle
+    if args.scan:
+        asyncio.run(scan_for_devices(scan_duration=args.scantime))
+    else:
+        asyncio.run(toggle_blinds())
+
+    log.info("Script execution finished.")
+
+"""
+**How to use the new feature:**
+
+1.  Save the updated code to your `toggle_blind.py` file.
+2.  Open Terminal.
+3.  Navigate to the directory where you saved the file.
+4.  To **scan** for devices for 5 seconds (default):
+    ```bash
+    python toggle_blind.py --scan
+    ```
+5.  To scan for a different duration (e.g., 10 seconds):
+    ```bash
+    python toggle_blind.py --scan --scantime 10
+    ```
+6.  To **toggle** the blind (the original functionality):
+    ```bash
+    python toggle_blind.py
+    ```
+
+This should help you confirm if your Mac can see the blind's MAC address (`E1:1D:ED:42:D1:90`) and if the address is corre
+```
+"""
