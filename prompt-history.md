@@ -21,3 +21,12 @@ The script is now successfully connecting to the blinds, but it's failing to get
 
 # Prompt 8
 Lets simplify it so that we use command-line arguments instead to open and close the blinds, and not rely on needing the position for the toggle. Make it default to opening the blinds if no argument is given and then you can give an open or close argument. Also add a standard --help argument to list options and explain what the script does, dependencies etc.
+
+# Prompt 9
+The script executes successfully, but the blinds don't open or close. Help debug why this is happening.
+
+# Prompt 10
+The blinds still fail to open or close. Here is the debug log, identify what is at fault here.
+
+# Prompt 11
+The official Tuiss SmartView app opens and closes the blinds fine. After testing this, I tried running the script again, but it still doesn't work. Here is the debug log. What are the likely causes for this still not working properly? And how can we resolve?
